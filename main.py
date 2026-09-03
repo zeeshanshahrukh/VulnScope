@@ -21,6 +21,16 @@ try:
 except ImportError:
     load_dotenv = None
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+from shodan_client import (  # noqa: E402
+    ShodanClient,
+    ShodanClientError,
+    ShodanNotConfiguredError,
+    ShodanNoResultsError,
+    ShodanRateLimitError,
+    format_result_terminal,
+)
+
 
 # --------------------------------------------------------------------------
 # Target type detection
@@ -232,19 +242,45 @@ def main(argv=None) -> int:
         )
         return 1
 
-    # --- Placeholder for the pipeline (built out in later phases) ---
-    # Phase 2: Shodan collection
-    # Phase 3: CVE intelligence
-    # Phase 4: VirusTotal correlation
-    # Phase 5: GitHub research
-    # Phase 6: Reporting
-    logger.info(
-        "Foundation check passed. Collection/correlation modules are not implemented yet "
-        "(Phase 2+). Target is validated and ready to be handed to the pipeline."
-    )
+    # --- Phase 2: Shodan collection (IP / domain / hostname targets only) ---
+    if target.type in (TargetType.IP, TargetType.DOMAIN, TargetType.HOSTNAME):
+        try:
+            client = ShodanClient(config["shodan_api_key"])
+        except ShodanNotConfiguredError as exc:
+            logger.error(str(exc))
+            return 1
+
+        try:
+            if target.type == TargetType.IP:
+                result = client.lookup_ip(target.normalized)
+            else:
+                result = client.resolve_hostname(target.normalized)
+        except ShodanNoResultsError as exc:
+            logger.warning(str(exc))
+            return 0
+        except ShodanRateLimitError as exc:
+            logger.error(str(exc))
+            return 1
+        except ShodanClientError as exc:
+            logger.error(str(exc))
+            return 1
+
+        if args.output == "json":
+            import json
+            print(json.dumps(result.raw, indent=2))
+        else:
+            print(format_result_terminal(result))
+
+    else:
+        # Phase 3+: CVE intelligence, technology lookups, etc.
+        logger.info(
+            "'%s' targets aren't handled by the Discovery module (Shodan). "
+            "CVE/technology intelligence lookups arrive in a later phase.",
+            target.type.value,
+        )
 
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+ sys.exit(main())

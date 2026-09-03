@@ -2,7 +2,9 @@
 requests>=2.31.0
 python-dotenv>=1.0.0
 
-# Later phases (uncomment as you build each module):
-# shodan>=1.31.0          # Phase 2 - Shodan client
+# Phase 2 - Discovery (Shodan)
+shodan>=1.31.0
+
+# Later phases (uncomment as you build each module)
 # vt-py>=0.18.0           # Phase 4 - VirusTotal
 # PyGithub>=2.3.0         # Phase 5 - GitHub research
