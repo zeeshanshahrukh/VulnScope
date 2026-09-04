@@ -22,7 +22,7 @@ except ImportError:
     load_dotenv = None
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
-from shodan_client import (  # noqa: E402
+from src.shodan_client import (  # noqa: E402
     ShodanClient,
     ShodanClientError,
     ShodanNotConfiguredError,
