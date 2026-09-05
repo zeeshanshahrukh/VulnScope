@@ -31,6 +31,14 @@ from src.shodan_client import (  # noqa: E402
     format_result_terminal,
 )
 
+from src.cve_client import (
+    CVEClient,
+    CVEClientError,
+    CVENotConfiguredError,
+    gather_cves_for_shodan_result,
+    format_cves_terminal,
+)
+
 
 # --------------------------------------------------------------------------
 # Target type detection
@@ -255,6 +263,7 @@ def main(argv=None) -> int:
                 result = client.lookup_ip(target.normalized)
             else:
                 result = client.resolve_hostname(target.normalized)
+
         except ShodanNoResultsError as exc:
             logger.warning(str(exc))
             return 0
@@ -265,11 +274,23 @@ def main(argv=None) -> int:
             logger.error(str(exc))
             return 1
 
+        cve_findings = []
+        try:
+            cve_client = CVEClient(config["nvd_api_key"])
+            cve_findings = gather_cves_for_shodan_result(cve_client, result)
+        except CVENotConfiguredError as exc:
+            logger.warning("Skipping CVE lookup: %s", exc)
+        except CVEClientError as exc:
+            logger.warning("CVE lookup failed: %s", exc)
+            return 1
+
         if args.output == "json":
             import json
-            print(json.dumps(result.raw, indent=2))
+            print(json.dumps({"shodan": result.raw, "cves": [f.raw for f in cve_findings]}, indent=2))
         else:
             print(format_result_terminal(result))
+            print()
+            print(format_cves_terminal(cve_findings))
 
     else:
         # Phase 3+: CVE intelligence, technology lookups, etc.
@@ -283,4 +304,4 @@ def main(argv=None) -> int:
 
 
 if __name__ == "__main__":
- sys.exit(main())
+    sys.exit(main())
